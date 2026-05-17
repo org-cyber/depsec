@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>depsec</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-elevated: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --accent: #3fb950;
+            --warn: #d29922;
+            --danger: #f85149;
+            --link: #58a6ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        h1 span {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .tagline {
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-bottom: 32px;
+            max-width: 600px;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        p { margin-bottom: 12px; }
+
+        a { color: var(--link); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        pre {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 12px 0 20px;
+        }
+
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            background: var(--bg-elevated);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            font-size: 13px;
+        }
+
+        .comment { color: var(--text-dim); }
+        .prompt { color: var(--text-dim); }
+        .cmd { color: var(--text); }
+        .arg { color: #79c0ff; }
+        .flag { color: #d2a8ff; }
+        .ok { color: var(--accent); }
+        .err { color: var(--danger); }
+        .warn { color: var(--warn); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0 24px;
+            font-size: 13px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-dim);
+            font-weight: 500;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td:first-child {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        ul {
+            margin: 12px 0 20px 20px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .nav {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav a {
+            color: var(--text-dim);
+            margin-right: 24px;
+            font-size: 14px;
+        }
+
+        .nav a:hover {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="nav">
+        <a href="https://github.com/org-cyber/depsec">GitHub</a>
+        <a href="#install">Install</a>
+        <a href="#status">Status</a>
+        <a href="#rules">Rules</a>
+    </div>
+
+    <h1>depsec <span>— dependency security gate</span></h1>
+    <p class="tagline">
+        Intercepts package installations before they touch your filesystem.
+        Validates names against typosquats. Scans the full dependency tree
+        for malicious code. Verifies every checksum.
+    </p>
+
+    <h2 id="install">Installation</h2>
+    <pre><code><span class="prompt">$</span> <span class="cmd">go</span> <span class="arg">install</span> github.com/org-cyber/depsec/cmd/depsec@latest
+
+<span class="comment"># Or build from source:</span>
+<span class="prompt">$</span> <span class="cmd">git</span> <span class="arg">clone</span> https://github.com/org-cyber/depsec.git
+<span class="prompt">$</span> <span class="cmd">cd</span> depsec
+<span class="prompt">$</span> <span class="cmd">go</span> <span class="arg">build</span> ./cmd/depsec</code></pre>
+
+    <p>Alias your package manager for transparent interception:</p>
+    <pre><code><span class="comment"># Add to ~/.zshrc or ~/.bashrc</span>
+<span class="cmd">alias</span> <span class="arg">npm</span>=<span class="arg">"depsec npm"</span>
+<span class="cmd">alias</span> <span class="arg">pip</span>=<span class="arg">"depsec pip"</span>
+<span class="cmd">alias</span> <span class="arg">cargo</span>=<span class="arg">"depsec cargo"</span></code></pre>
+
+    <h2>Usage</h2>
+    <pre><code><span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">install</span> <span class="arg">npm</span> <span class="arg">express</span>
+<span class="ok">[depsec] ALLOWED: express@5.2.1</span>
+<span class="ok">[depsec] Scanned 45 unique packages in tree. Clean.</span>
+<span class="ok">[depsec] Proceeding with install.</span>
+
+<span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">install</span> <span class="arg">npm</span> <span class="arg">this-is-fake</span>
+<span class="err">[depsec] BLOCKED: package "this-is-fake" not found in registry</span>
+<span class="err">           Did you mean: this-is-real?</span>
+
+<span class="prompt">$</span> <span class="cmd">depsec</span> <span class="arg">scan</span> <span class="arg">package-lock.json</span></code></pre>
+
+    <h2>Behavior</h2>
+
+    <p><strong>Gate checks</strong> (before any download):</p>
+    <ul>
+        <li><strong>Registry existence</strong> — 404 blocks immediately. Catches AI-hallucinated package names before an attacker can register them.</li>
+        <li><strong>Typosquat detection</strong> — Levenshtein distance + homoglyph normalization (Cyrillic <code>е</code> vs Latin <code>e</code>) against top-10,000 packages.</li>
+        <li><strong>Project context</strong> — Flags new dependencies in mature projects. A package not in your existing <code>package.json</code> gets stricter scrutiny.</li>
+    </ul>
+
+    <p><strong>Scanner checks</strong> (after quarantine download):</p>
+    <ul>
+        <li><strong>Install script analysis</strong> — <code>preinstall</code>, <code>postinstall</code>, <code>prepare</code> containing network calls (<code>curl</code>, <code>fetch</code>, <code>wget</code>, <code>node -e</code>).</li>
+        <li><strong>Persistence path detection</strong> — File writes to <code>.claude/</code>, <code>.vscode/</code>, <code>.github/workflows/</code>, or shell profiles.</li>
+        <li><strong>Full tree coverage</strong> — Not just the package you asked for. Every sub-dependency is resolved, downloaded, and scanned concurrently.</li>
+    </ul>
+
+    <p><strong>Checksum verification</strong> — Every tarball is verified against the registry's declared hash before extraction. Prevents CDN compromise or MITM substitution.</p>
+
+    <h2 id="status">Status</h2>
+    <table>
+        <tr>
+            <th>Language</th>
+            <th>Registry</th>
+            <th>Gate</th>
+            <th>Tree</th>
+            <th>Scan</th>
+            <th>Checksum</th>
+        </tr>
+        <tr>
+            <td>npm</td>
+            <td><span class="ok">yes</span></td>
+            <td><span class="ok">yes</span></td>
+            <td><span class="ok">yes</span></td>
+            <td><span class="ok">yes</span></td>
+            <td>SHA1</td>
+        </tr>
+        <tr>
+            <td>pip</td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td>SHA256</td>
+        </tr>
+        <tr>
+            <td>cargo</td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td><span class="warn">planned</span></td>
+            <td>SHA256</td>
+        </tr>
+    </table>
+
+    <h2 id="rules">Scanner Rules</h2>
+    <table>
+        <tr>
+            <th>Rule ID</th>
+            <th>Severity</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>npm-postinstall-network</td>
+            <td><span class="err">Critical</span></td>
+            <td>Install script (<code>preinstall</code>, <code>postinstall</code>, <code>prepare</code>) contains a network call or code execution.</td>
+        </tr>
+        <tr>
+            <td>npm-persistence-path</td>
+            <td><span class="err">Critical</span></td>
+            <td>Package contains files targeting IDE/AI configuration directories (<code>.claude/</code>, <code>.vscode/</code>) or GitHub Actions workflows.</td>
+        </tr>
+    </table>
+
+    <h2>Why</h2>
+    <p>
+        Existing tools (Snyk, Dependabot, OSV) focus on <strong>known CVEs</strong> — version bumps for disclosed vulnerabilities.
+        They don't catch valid packages with valid provenance that contain novel malware,
+        typosquats with zero CVEs, or install-time persistence mechanisms.
+    </p>
+    <p>
+        depsec was built in response to the <strong>Mini Shai-Hulud</strong> supply chain campaign (May 2026)
+        and the ongoing wave of Next.js ecosystem attacks. Deterministic security tools for deterministic threats.
+    </p>
+
+    <h2>License</h2>
+    <p><a href="https://github.com/org-cyber/depsec/blob/main/LICENSE">MIT</a></p>
+
+    <footer>
+        <a href="https://github.com/org-cyber/depsec">github.com/org-cyber/depsec</a>
+    </footer>
+</body>
+</html>

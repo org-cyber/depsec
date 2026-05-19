@@ -41,7 +41,7 @@ var installCmd = &cobra.Command{
 			Typosquat: tqEngine,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 		defer cancel()
 
 		// --- FEATURE 1: Gate check on top-level package ---

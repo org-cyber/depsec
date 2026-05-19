@@ -1,8 +1,64 @@
 package typosquat
 
 import (
+	"compress/gzip"
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"io"
 	"math"
+	"strings"
 )
+
+//go:embed popular.json.gz
+var popularData []byte
+
+var popularNames []string
+
+func init() {
+	var err error
+	popularNames, err = loadPopular()
+	if err != nil {
+		// Fallback to hardcoded minimal list if embedded data fails
+		popularNames = minimalFallback()
+	}
+}
+
+func loadPopular() ([]string, error) {
+	if len(popularData) == 0 {
+		return nil, fmt.Errorf("no embedded data")
+	}
+
+	gz, err := gzip.NewReader(strings.NewReader(string(popularData)))
+	if err != nil {
+		return nil, err
+	}
+	defer gz.Close()
+
+	data, err := io.ReadAll(gz)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	if err := json.Unmarshal(data, &names); err != nil {
+		return nil, err
+	}
+
+	return names, nil
+}
+
+func minimalFallback() []string {
+	return []string{
+		"lodash", "express", "react", "react-dom", "axios", "tslib",
+		"chalk", "commander", "core-js", "semver", "uuid", "debug",
+	}
+}
+
+// Top100 returns the full embedded list (now ~926 packages).
+func Top100() []string {
+	return popularNames
+}
 
 type Result struct {
 	IsTyposquat bool
@@ -19,46 +75,16 @@ func New(popular []string) *Engine {
 	return &Engine{popular: popular}
 }
 
-// Top100 returns a hardcoded list of the top 100 npm packages for MVP.
-func Top100() []string {
-	return []string{
-		"lodash", "express", "react", "react-dom", "axios", "tslib",
-		"chalk", "commander", "core-js", "semver", "uuid", "debug",
-		"typescript", "@types/node", "glob", "rimraf", "minimatch",
-		"inherits", "ms", "mkdirp", "once", "wrappy", "safe-buffer",
-		"string_decoder", "util-deprecate", "isarray", "process-nextick-args",
-		"readable-stream", "yallist", "minipass", "fs-minipass", "tar",
-		"color", "colors", "has-flag", "supports-color", "ansi-styles",
-		"escape-string-regexp", "strip-ansi", "ansi-regex", "is-fullwidth-code-point",
-		"emoji-regex", "get-stream", "pump", "end-of-stream", "once",
-		"signal-exit", "wrappy", "inherits", "util", "path-is-absolute",
-		"glob", "brace-expansion", "balanced-match", "concat-map", "minimatch",
-		"inflight", "wrappy", "once", "mkdirp", "rimraf", "semver", "which",
-		"isexe", "cross-spawn", "shebang-command", "shebang-regex",
-		"strip-eof", "npm-run-path", "path-key", "is-stream", "p-finally",
-		"make-dir", "pify", "jsonfile", "universalify", "graceful-fs",
-		"imurmurhash", "slide", "async", "bluebird", "request", "qs",
-		"form-data", "combined-stream", "delayed-stream", "mime-types",
-		"mime-db", "http-errors", "setprototypeof", "statuses", "depd",
-		"on-finished", "ee-first", "forwarded", "ipaddr.js", "proxy-addr",
-		"range-parser", "send", "mime", "destroy", "fresh", "etag",
-		"cookie", "cookie-signature", "merge-descriptors", "methods",
-		"negotiator", "vary", "accepts", "mime-types", "mime-db",
-	}
-}
-
-// Check compares the given name against the popular list.
 func (e *Engine) Check(name string) *Result {
 	for _, pop := range e.popular {
 		if name == pop {
-			continue // exact match is not a typosquat
+			continue
 		}
 
 		dist := levenshtein(name, pop)
 		maxLen := math.Max(float64(len(name)), float64(len(pop)))
 		similarity := 1.0 - float64(dist)/maxLen
 
-		// Threshold: distance <= 2 and name length >= 4
 		if dist <= 2 && len(name) >= 4 && similarity > 0.7 {
 			return &Result{
 				IsTyposquat: true,
@@ -71,7 +97,6 @@ func (e *Engine) Check(name string) *Result {
 	return &Result{IsTyposquat: false}
 }
 
-// Suggest returns the closest popular package name for a non-existent package.
 func (e *Engine) Suggest(name string) string {
 	best := ""
 	bestDist := 100
@@ -91,7 +116,6 @@ func (e *Engine) Suggest(name string) string {
 	return ""
 }
 
-// levenshtein computes the edit distance between two strings.
 func levenshtein(a, b string) int {
 	la := len(a)
 	lb := len(b)
@@ -102,7 +126,6 @@ func levenshtein(a, b string) int {
 		return la
 	}
 
-	// Use two rows instead of full matrix for memory efficiency
 	prev := make([]int, lb+1)
 	curr := make([]int, lb+1)
 
@@ -118,9 +141,9 @@ func levenshtein(a, b string) int {
 				cost = 0
 			}
 			curr[j] = min(
-				curr[j-1]+1,      // insertion
-				prev[j]+1,        // deletion
-				prev[j-1]+cost,   // substitution
+				curr[j-1]+1,
+				prev[j]+1,
+				prev[j-1]+cost,
 			)
 		}
 		prev, curr = curr, prev
